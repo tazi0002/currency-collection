@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Currency Collection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main>
+    <section class="inventory" id="inventory" aria-labelledby="inventory-title">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">Coins & bank notes</p>
+          <h1 id="inventory-title">Currency Collection</h1>
+        </div>
+        <div class="summary-strip" aria-label="Collection summary">
+          <span><strong id="totalItems">0</strong> total</span>
+          <span><strong id="coinCount">0</strong> coins</span>
+          <span><strong id="banknoteCount">0</strong> notes</span>
+        </div>
+      </div>
+
+      <div class="sticky-tools">
+        <form class="filters" id="filters" aria-label="Inventory filters">
+          <label class="filter-search">
+            Search
+            <input id="searchFilter" type="search" placeholder="Search name, country, notes...">
+          </label>
+
+          <label>
+            Type
+            <select id="typeFilter">
+              <option value="all">All types</option>
+              <option value="coin">Coins</option>
+              <option value="banknote">Bank notes</option>
+            </select>
+          </label>
+
+          <label>
+            Country
+            <select id="countryFilter">
+              <option value="all">All countries</option>
+            </select>
+          </label>
+
+          <label>
+            Value
+            <select id="valueFilter">
+              <option value="all">All values</option>
+            </select>
+          </label>
+
+          <label>
+            Collection set
+            <select id="setFilter">
+              <option value="all">All sets</option>
+            </select>
+          </label>
+
+          <label>
+            Year
+            <select id="yearFilter">
+              <option value="all">All years</option>
+            </select>
+          </label>
+
+          <label>
+            View
+            <select id="cardSizeFilter">
+              <option value="list">List</option>
+              <option value="images" selected>Images</option>
+              <option value="detailed">Detailed</option>
+            </select>
+          </label>
+
+          <button class="reset-button" type="button" id="resetFilters">Reset</button>
+        </form>
+
+        <div class="sort-actions" aria-label="Sort results">
+          <button class="sort-action" type="button" id="sortValueButton" data-sort-key="value">Sort by value</button>
+          <button class="sort-action is-active" type="button" id="sortYearButton" data-sort-key="year">Sort by year ↑</button>
+        </div>
+
+        <div class="result-line">
+          <p><strong id="resultCount">0</strong> item(s) found. Showing <strong id="shownCount">0</strong>.</p>
+        </div>
+      </div>
+
+      <div class="inventory-grid view-images" id="inventoryGrid" aria-live="polite"></div>
+      <p class="empty-state" id="emptyState" hidden>No inventory items match these filters.</p>
+      <button class="see-more-button" type="button" id="seeMoreButton" hidden>See more</button>
+    </section>
+  </main>
+
+
+  <div class="coin-overlay" id="coinOverlay" hidden>
+    <div class="coin-overlay-panel" role="dialog" aria-modal="true" aria-label="Coin image viewer">
+      <button class="overlay-close" type="button" id="overlayClose" aria-label="Close coin viewer">Close</button>
+      <p class="overlay-title" id="overlayTitle"></p>
+      <button class="overlay-coin coin-flip" type="button" id="overlayCoin" aria-label="Flip enlarged coin">
+        <span class="coin-flip-inner" id="overlayCoinInner"></span>
+      </button>
+      <p class="overlay-hint">Click coin to flip. Click outside to close.</p>
+    </div>
+  </div>
+  <script src="js/inventory.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+
+
+
+
