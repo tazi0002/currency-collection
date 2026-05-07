@@ -14,20 +14,20 @@
     <section class="inventory" id="inventory" aria-labelledby="inventory-title">
       <div class="page-title">
         <div>
-          <p class="eyebrow">Coins & bank notes</p>
-          <h1 id="inventory-title">Currency Collection</h1>
+          <p class="eyebrow">Currency Collection</p>
+          <h1 id="inventory-title">Inventory</h1>
         </div>
         <div class="summary-strip" aria-label="Collection summary">
-          <span><strong id="totalItems">0</strong> total</span>
           <span><strong id="coinCount">0</strong> coins</span>
-          <span><strong id="banknoteCount">0</strong> notes</span>
+          <span><strong id="banknoteCount">0</strong> banknotes</span>
+          <span><strong id="totalItems">0</strong> total</span>
         </div>
       </div>
 
       <div class="sticky-tools">
         <form class="filters" id="filters" aria-label="Inventory filters">
           <label class="filter-search">
-            Search
+            Keyword
             <input id="searchFilter" type="search" placeholder="Search name, country, notes...">
           </label>
 
@@ -68,29 +68,24 @@
             </select>
           </label>
 
-          <label>
-            View
-            <select id="cardSizeFilter">
-              <option value="list">List</option>
-              <option value="images" selected>Images</option>
-              <option value="detailed">Detailed</option>
-            </select>
-          </label>
+          <div class="sort-label">
+            <span>Sort by</span>
+            <button class="sort-select" type="button" id="sortSelect" aria-expanded="false">Year &#8595;</button>
+            <div class="sort-menu" id="sortMenu" hidden>
+              <button type="button" data-sort-key="year">Year &#8595;</button>
+              <button type="button" data-sort-key="value">Value</button>
+            </div>
+          </div>
 
-          <button class="reset-button" type="button" id="resetFilters">Reset</button>
+          <button class="reset-button" type="button" id="resetFilters">Clear filter</button>
         </form>
-
-        <div class="sort-actions" aria-label="Sort results">
-          <button class="sort-action" type="button" id="sortValueButton" data-sort-key="value">Sort by value</button>
-          <button class="sort-action is-active" type="button" id="sortYearButton" data-sort-key="year">Sort by year ↑</button>
-        </div>
 
         <div class="result-line">
           <p><strong id="resultCount">0</strong> item(s) found. Showing <strong id="shownCount">0</strong>.</p>
         </div>
       </div>
 
-      <div class="inventory-grid view-images" id="inventoryGrid" aria-live="polite"></div>
+      <div class="inventory-grid view-detailed" id="inventoryGrid" aria-live="polite"></div>
       <p class="empty-state" id="emptyState" hidden>No inventory items match these filters.</p>
       <button class="see-more-button" type="button" id="seeMoreButton" hidden>See more</button>
     </section>
@@ -99,19 +94,23 @@
 
   <div class="coin-overlay" id="coinOverlay" hidden>
     <div class="coin-overlay-panel" role="dialog" aria-modal="true" aria-label="Coin image viewer">
-      <button class="overlay-close" type="button" id="overlayClose" aria-label="Close coin viewer">Close</button>
-      <p class="overlay-title" id="overlayTitle"></p>
-      <button class="overlay-coin coin-flip" type="button" id="overlayCoin" aria-label="Flip enlarged coin">
-        <span class="coin-flip-inner" id="overlayCoinInner"></span>
-      </button>
-      <p class="overlay-hint">Click coin to flip. Click outside to close.</p>
+      <button class="overlay-close" type="button" id="overlayClose" aria-label="Close coin viewer">X</button>
+      <div class="overlay-stage">
+        <aside class="overlay-details" id="overlayDetails" aria-label="Currency details"></aside>
+        <button class="overlay-coin coin-flip" type="button" id="overlayCoin" aria-label="Flip enlarged currency image">
+          <span class="coin-flip-inner" id="overlayCoinInner"></span>
+        </button>
+      </div>
+      <div class="overlay-nav-row">
+        <button class="overlay-nav overlay-prev" type="button" id="overlayPrev" aria-label="Previous item">&#8592;</button>
+        <button class="overlay-nav overlay-next" type="button" id="overlayNext" aria-label="Next item">&#8594;</button>
+      </div>
     </div>
   </div>
   <script src="js/inventory.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
-
 
 
 

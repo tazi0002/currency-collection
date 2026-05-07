@@ -1,5 +1,6 @@
-﻿const inventory = Array.isArray(window.collectionInventory) ? window.collectionInventory : [];
+const inventory = Array.isArray(window.collectionInventory) ? window.collectionInventory : [];
 const PAGE_SIZE = 48;
+const STORAGE_KEY = "currencyCollectionConfig";
 
 let visibleCount = PAGE_SIZE;
 let currentFilteredInventory = [];
@@ -7,6 +8,9 @@ let sortState = {
   key: "year",
   direction: "asc"
 };
+let overlayItem = null;
+let overlaySide = "front";
+let overlayTurnTimer = null;
 
 const elements = {
   totalItems: document.querySelector("#totalItems"),
@@ -23,17 +27,71 @@ const elements = {
   valueFilter: document.querySelector("#valueFilter"),
   setFilter: document.querySelector("#setFilter"),
   yearFilter: document.querySelector("#yearFilter"),
-  cardSizeFilter: document.querySelector("#cardSizeFilter"),
-  sortYearButton: document.querySelector("#sortYearButton"),
-  sortValueButton: document.querySelector("#sortValueButton"),
+  sortSelect: document.querySelector("#sortSelect"),
+  sortMenu: document.querySelector("#sortMenu"),
   resetFilters: document.querySelector("#resetFilters"),
   coinOverlay: document.querySelector("#coinOverlay"),
+  overlayPanel: document.querySelector(".coin-overlay-panel"),
   overlayClose: document.querySelector("#overlayClose"),
-  overlayTitle: document.querySelector("#overlayTitle"),
+  overlayDetails: document.querySelector("#overlayDetails"),
+  overlayPrev: document.querySelector("#overlayPrev"),
+  overlayNext: document.querySelector("#overlayNext"),
   overlayCoin: document.querySelector("#overlayCoin"),
   overlayCoinInner: document.querySelector("#overlayCoinInner")
 };
 
+function getPageConfig() {
+  return {
+    search: elements.searchFilter.value,
+    type: elements.typeFilter.value,
+    country: elements.countryFilter.value,
+    value: elements.valueFilter.value,
+    set: elements.setFilter.value,
+    year: elements.yearFilter.value,
+    sortKey: sortState.key,
+    sortDirection: sortState.direction,
+    visibleCount
+  };
+}
+
+function savePageConfig() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(getPageConfig()));
+  } catch (error) {
+    // Ignore storage errors so filtering still works in private/restricted modes.
+  }
+}
+
+function restorePageConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (!saved) return;
+
+    elements.searchFilter.value = saved.search || "";
+    elements.typeFilter.value = saved.type || "all";
+    elements.countryFilter.value = saved.country || "all";
+    refreshValueOptions();
+    refreshSetOptions();
+    elements.valueFilter.value = [...elements.valueFilter.options].some((option) => option.value === saved.value) ? saved.value : "all";
+    elements.setFilter.value = [...elements.setFilter.options].some((option) => option.value === saved.set) ? saved.set : "all";
+    elements.yearFilter.value = [...elements.yearFilter.options].some((option) => option.value === saved.year) ? saved.year : "all";
+    sortState = {
+      key: ["year", "value"].includes(saved.sortKey) ? saved.sortKey : "year",
+      direction: saved.sortDirection === "desc" ? "desc" : "asc"
+    };
+    visibleCount = Math.max(PAGE_SIZE, Number(saved.visibleCount) || PAGE_SIZE);
+  } catch (error) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function clearPageConfig() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    // Ignore storage errors.
+  }
+}
 function normalize(value) {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -56,12 +114,55 @@ function getSortYear(value, fallback = 0) {
   return years.length ? years[years.length - 1] : fallback;
 }
 
+
+function getValueAmount(value) {
+  const text = String(value ?? "").toLowerCase().replace(/,/g, "");
+  const match = text.match(/\d+(?:\.\d+)?/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+
+  let amount = Number(match[0]);
+  if (text.includes("cent")) amount /= 100;
+  return amount;
+}
+
+function uniqueValuesByAmount(items) {
+  return [...new Set(items.map((item) => item.value).filter(Boolean))]
+    .sort((a, b) => getValueAmount(a) - getValueAmount(b)
+      || String(a).localeCompare(String(b), undefined, { numeric: true }));
+}
+
 function getDecadeLabel(value) {
   const sortYear = getSortYear(value);
   if (!sortYear) return "Unknown year";
   return `${Math.floor(sortYear / 10) * 10}s`;
 }
 
+function getCountryCode(country) {
+  return {
+    Canada: "ca",
+    Iran: "ir"
+  }[country] || "";
+}
+
+function titleCaseValue(value) {
+  return label(value).toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getDisplayValue(item) {
+  const value = titleCaseValue(item.value);
+
+  if (item.country === "Canada") {
+    return value.replace(/Dollar\b/, "Canadian Dollar").replace(/Dollars\b/, "Canadian Dollars").replace(/Cent\b/, "Canadian Cent").replace(/Cents\b/, "Canadian Cents");
+  }
+
+  return value;
+}
+
+function getKeyCollectibles(item) {
+  if (item.notes) return item.notes;
+  if (item.collectionSet === "Special Collection") return item.name;
+  return "None listed";
+}
 function getTypeName(item) {
   return item.type === "banknote" ? "Bank note" : "Coin";
 }
@@ -103,7 +204,7 @@ function getItemsForCountryOptions() {
 
 function refreshValueOptions() {
   const currentValue = elements.valueFilter.value;
-  const values = uniqueSorted(getItemsForCountryOptions(), "value");
+  const values = uniqueValuesByAmount(getItemsForCountryOptions());
 
   clearSelect(elements.valueFilter, "All values");
   elements.valueFilter.disabled = elements.countryFilter.value === "all";
@@ -137,13 +238,14 @@ function updateSummary() {
 }
 
 function updateSortButtons() {
-  const buttons = [elements.sortYearButton, elements.sortValueButton];
+  const arrow = sortState.direction === "asc" ? "\u2193" : "\u2191";
+  const activeLabel = sortState.key === "year" ? "Year" : "Value";
 
-  buttons.forEach((button) => {
-    const isActive = button.dataset.sortKey === sortState.key;
-    button.classList.toggle("is-active", isActive);
-    const label = button.dataset.sortKey === "year" ? "Sort by year" : "Sort by value";
-    button.textContent = isActive ? `${label} ${sortState.direction === "asc" ? "↑" : "↓"}` : label;
+  elements.sortSelect.textContent = `${activeLabel} ${arrow}`;
+  elements.sortMenu.querySelectorAll("[data-sort-key]").forEach((button) => {
+    const label = button.dataset.sortKey === "year" ? "Year" : "Value";
+    button.textContent = `${label} ${button.dataset.sortKey === sortState.key ? arrow : ""}`.trim();
+    button.classList.toggle("is-active", button.dataset.sortKey === sortState.key);
   });
 }
 
@@ -153,16 +255,19 @@ function handleSortAction(key) {
     direction: sortState.key === key && sortState.direction === "asc" ? "desc" : "asc"
   };
   updateSortButtons();
+  savePageConfig();
   renderInventory();
 }
+
+
 function updateCardView() {
   elements.grid.classList.remove("view-list", "view-images", "view-detailed");
-  elements.grid.classList.add(`view-${elements.cardSizeFilter.value}`);
+  elements.grid.classList.add("view-detailed");
 }
 
 function getSortValue(item, key) {
   if (key === "year") return getSortYear(item.year, Number.MAX_SAFE_INTEGER);
-  if (key === "value") return item.value;
+  if (key === "value") return getValueAmount(item.value);
   return item.name;
 }
 
@@ -288,7 +393,8 @@ function getCoinFaceDescription(item, side) {
 }
 
 function getWatchButton(item) {
-  return `<button class="watch-coin-button" type="button" data-coin-id="${item.id}">See coin</button>`;
+  const buttonLabel = item.type === "banknote" ? "See banknote" : "See coin";
+  return `<button class="watch-coin-button" type="button" data-coin-id="${item.id}">${buttonLabel}</button>`;
 }
 
 function renderListHeader() {
@@ -301,7 +407,7 @@ function renderListHeader() {
     <div class="list-header" role="row">
       ${columns.map(([key, title]) => `
         <button class="list-sort ${sortState.key === key ? "is-active" : ""}" type="button" data-sort-key="${key}">
-          ${title}${sortState.key === key ? (sortState.direction === "asc" ? " ↑" : " ↓") : ""}
+          ${title}${sortState.key === key ? (sortState.direction === "asc" ? " \u2193" : " \u2191") : ""}
         </button>
       `).join("")}
       <span></span>
@@ -310,10 +416,6 @@ function renderListHeader() {
 }
 
 function renderCard(item) {
-  const detailsId = `details-${item.id}`;
-  const quantity = item.quantity || 1;
-  const itemTypeLabel = getItemTypeLabel(item);
-
   return `
     <article class="inventory-card ${item.type}" data-coin-id="${item.id}">
       <div class="list-row">
@@ -326,43 +428,98 @@ function renderCard(item) {
         ${getImageMarkup(item)}
       </div>
       <div class="item-quick">
-        <p class="item-year">${label(item.year)}</p>
-        <button class="details-toggle" type="button" aria-expanded="false" aria-controls="${detailsId}">More detail</button>
-      </div>
-      <div class="item-details" id="${detailsId}" hidden>
-        <div class="card-topline">
-          <span>${getTypeName(item)}</span>
-          <span>${label(item.value)}</span>
-        </div>
-        <dl>
-          <div><dt>Country</dt><dd>${label(item.country)}</dd></div>
-          <div><dt>Set</dt><dd>${label(item.collectionSet)}</dd></div>
-          <div><dt>Front</dt><dd>${getCoinFaceDescription(item, "front")}</dd></div>
-          <div><dt>Back</dt><dd>${getCoinFaceDescription(item, "back")}</dd></div>
-          <div><dt>Material</dt><dd>${label(item.material)}</dd></div>
-          <div><dt>Condition</dt><dd>${label(item.condition)}</dd></div>
-        </dl>
-        ${item.notes ? `<p class="notes">${item.notes}</p>` : ""}
-        <div class="detail-coin-action">${getWatchButton(item)}</div>
+        <span class="item-value">${label(item.value)}</span>
+        <span class="item-year">${label(item.year)}</span>
       </div>
     </article>
   `;
 }
 
+function renderOverlayDetails(item) {
+  const countryCode = getCountryCode(item.country);
+  const flag = countryCode ? `<img class="country-flag" src="https://flagcdn.com/${countryCode}.svg" alt="${label(item.country)} flag">` : "";
+
+  elements.overlayDetails.innerHTML = `
+    <header class="overlay-country">
+      ${flag}
+      <span>${label(item.country)}</span>
+    </header>
+    <dl>
+      <div><dt>Value</dt><dd>${getDisplayValue(item)}</dd></div>
+      <div><dt>Year</dt><dd>${label(item.year)}</dd></div>
+      <div><dt>Type</dt><dd>${getTypeName(item)}</dd></div>
+      <div><dt>Set</dt><dd>${label(item.collectionSet)}</dd></div>
+      <div><dt>Material</dt><dd>${label(item.material)}</dd></div>
+      <div><dt>Condition</dt><dd>${label(item.condition)}</dd></div>
+      <div><dt>Key Collectibles</dt><dd>${getKeyCollectibles(item)}</dd></div>
+    </dl>
+  `;
+}
+function renderOverlayBanknoteFace(item, side) {
+  elements.overlayCoinInner.innerHTML = `<span class="coin-face coin-front">${getFaceMarkup(item, side)}</span>`;
+}
+
+function getOverlaySource() {
+  return currentFilteredInventory.length ? currentFilteredInventory : getFilteredInventory();
+}
+
+function getOverlayIndex() {
+  return getOverlaySource().findIndex((item) => item.id === overlayItem?.id);
+}
+
+function updateOverlayNavigation() {
+  const source = getOverlaySource();
+  const index = getOverlayIndex();
+  const prevDisabled = index <= 0;
+  const nextDisabled = index < 0 || index >= source.length - 1;
+
+  elements.overlayPrev.disabled = prevDisabled;
+  elements.overlayNext.disabled = nextDisabled;
+  elements.overlayPrev.setAttribute("aria-disabled", String(prevDisabled));
+  elements.overlayNext.setAttribute("aria-disabled", String(nextDisabled));
+}
+
+function openOverlayByOffset(offset) {
+  const source = getOverlaySource();
+  const index = getOverlayIndex();
+  const nextItem = source[index + offset];
+
+  if (nextItem) {
+    openCoinOverlay(nextItem);
+  }
+}
+
 function openCoinOverlay(item) {
   if (!item) return;
 
-  elements.overlayTitle.textContent = `${getItemTypeLabel(item)} - ${label(item.year)}`;
-  elements.overlayCoin.classList.remove("is-flipped");
-  elements.overlayCoinInner.innerHTML = `
-    <span class="coin-face coin-front">${getFaceMarkup(item, "front")}</span>
-    <span class="coin-face coin-back">${getFaceMarkup(item, "back")}</span>
-  `;
+  overlayItem = item;
+  overlaySide = "front";
+  window.clearTimeout(overlayTurnTimer);
+  renderOverlayDetails(item);
+  elements.overlayCoin.classList.remove("is-flipped", "is-twisting-out", "is-twisting-in");
+  elements.overlayCoin.classList.toggle("banknote", item.type === "banknote");
+  elements.overlayPanel.classList.toggle("banknote", item.type === "banknote");
+
+  if (item.type === "banknote") {
+    renderOverlayBanknoteFace(item, "front");
+  } else {
+    elements.overlayCoinInner.innerHTML = `
+      <span class="coin-face coin-front">${getFaceMarkup(item, "front")}</span>
+      <span class="coin-face coin-back">${getFaceMarkup(item, "back")}</span>
+    `;
+  }
+
   elements.coinOverlay.hidden = false;
   document.body.classList.add("overlay-open");
+  updateOverlayNavigation();
 }
 
 function closeCoinOverlay() {
+  overlayItem = null;
+  overlaySide = "front";
+  window.clearTimeout(overlayTurnTimer);
+  elements.overlayCoin.classList.remove("is-flipped", "is-twisting-out", "is-twisting-in", "banknote");
+  elements.overlayPanel.classList.remove("banknote");
   elements.coinOverlay.hidden = true;
   document.body.classList.remove("overlay-open");
 }
@@ -374,7 +531,7 @@ function renderInventory(resetVisible = true) {
 
   currentFilteredInventory = getFilteredInventory();
   const visibleItems = currentFilteredInventory.slice(0, visibleCount);
-  const listHeader = elements.cardSizeFilter.value === "list" && visibleItems.length ? renderListHeader() : "";
+  const listHeader = "";
 
   elements.resultCount.textContent = currentFilteredInventory.length;
   elements.shownCount.textContent = visibleItems.length;
@@ -389,8 +546,9 @@ function resetAllFilters() {
   elements.countryFilter.value = "all";
   elements.setFilter.value = "all";
   elements.yearFilter.value = "all";
-  elements.cardSizeFilter.value = "images";
+  visibleCount = PAGE_SIZE;
   sortState = { key: "year", direction: "asc" };
+  clearPageConfig();
   updateSortButtons();
   refreshValueOptions();
   refreshSetOptions();
@@ -404,7 +562,9 @@ function handleFilterChange(event) {
     refreshSetOptions();
   }
 
+  visibleCount = PAGE_SIZE;
   updateSortButtons();
+  savePageConfig();
   renderInventory();
 }
 
@@ -419,23 +579,61 @@ function handleFilterChange(event) {
   control.addEventListener("input", handleFilterChange);
 });
 
-elements.cardSizeFilter.addEventListener("input", () => {
-  updateCardView();
-  renderInventory(false);
+
+elements.sortSelect.addEventListener("click", () => {
+  const isOpen = elements.sortSelect.getAttribute("aria-expanded") === "true";
+  elements.sortSelect.setAttribute("aria-expanded", String(!isOpen));
+  elements.sortMenu.hidden = isOpen;
 });
 
-elements.sortYearButton.addEventListener("click", () => handleSortAction("year"));
-elements.sortValueButton.addEventListener("click", () => handleSortAction("value"));
+elements.sortMenu.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-sort-key]");
+  if (!button) return;
 
+  handleSortAction(button.dataset.sortKey);
+  elements.sortMenu.hidden = true;
+  elements.sortSelect.setAttribute("aria-expanded", "false");
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".sort-label")) return;
+
+  elements.sortMenu.hidden = true;
+  elements.sortSelect.setAttribute("aria-expanded", "false");
+});
 elements.resetFilters.addEventListener("click", resetAllFilters);
 elements.seeMoreButton.addEventListener("click", () => {
   visibleCount += PAGE_SIZE;
+  savePageConfig();
   renderInventory(false);
 });
 
 elements.overlayCoin.addEventListener("click", () => {
-  elements.overlayCoin.classList.toggle("is-flipped");
+  if (!overlayItem) return;
+
+  if (overlayItem.type !== "banknote") {
+    elements.overlayCoin.classList.toggle("is-flipped");
+    return;
+  }
+
+  if (elements.overlayCoin.classList.contains("is-twisting-out") || elements.overlayCoin.classList.contains("is-twisting-in")) return;
+
+  const nextSide = overlaySide === "front" ? "back" : "front";
+  elements.overlayCoin.classList.add("is-twisting-out");
+  window.clearTimeout(overlayTurnTimer);
+  overlayTurnTimer = window.setTimeout(() => {
+    overlaySide = nextSide;
+    renderOverlayBanknoteFace(overlayItem, overlaySide);
+    elements.overlayCoin.classList.remove("is-twisting-out");
+    elements.overlayCoin.classList.add("is-twisting-in");
+    window.setTimeout(() => {
+      elements.overlayCoin.classList.remove("is-twisting-in");
+    }, 230);
+  }, 230);
 });
+
+elements.overlayPrev.addEventListener("click", () => openOverlayByOffset(-1));
+elements.overlayNext.addEventListener("click", () => openOverlayByOffset(1));
 
 elements.overlayClose.addEventListener("click", closeCoinOverlay);
 elements.coinOverlay.addEventListener("click", (event) => {
@@ -466,10 +664,8 @@ elements.grid.addEventListener("click", (event) => {
   const flipButton = event.target.closest(".coin-flip");
   if (flipButton) {
     const card = flipButton.closest(".inventory-card");
-    if (elements.cardSizeFilter.value === "images" && card) {
+    if (card) {
       openCoinOverlay(getItemById(card.dataset.coinId));
-    } else {
-      flipButton.classList.toggle("is-flipped");
     }
     return;
   }
@@ -480,24 +676,12 @@ elements.grid.addEventListener("click", (event) => {
     return;
   }
 
-  const button = event.target.closest(".details-toggle");
-  if (!button) return;
 
-  const details = document.getElementById(button.getAttribute("aria-controls"));
-  const isOpen = button.getAttribute("aria-expanded") === "true";
-
-  button.setAttribute("aria-expanded", String(!isOpen));
-  button.textContent = isOpen ? "More detail" : "Hide detail";
-  details.hidden = isOpen;
 });
 
 setupFilters();
+restorePageConfig();
 updateSummary();
 updateSortButtons();
 updateCardView();
-renderInventory();
-
-
-
-
-
+renderInventory(false);
