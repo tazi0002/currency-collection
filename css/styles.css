@@ -81,11 +81,12 @@ h1 {
 }
 
 .summary-strip span {
-  min-height: 38px;
-  padding: 9px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.72);
+  min-height: 0;
+  padding: 0 0 0 12px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   font-weight: 800;
 }
 
@@ -93,6 +94,76 @@ h1 {
   color: var(--ink);
 }
 
+
+.collection-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -4px 0 18px;
+}
+
+.collection-tab {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.78);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.collection-tab.is-active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.inventory-card.missing {
+  border-style: dashed;
+  background: rgba(255, 250, 240, 0.68);
+}
+
+.inventory-card.missing .item-image {
+  background:
+    linear-gradient(135deg, rgba(117, 106, 92, 0.14), rgba(255, 250, 240, 0.72)),
+    var(--paper-strong);
+}
+
+.inventory-card.missing .coin-flip {
+  cursor: pointer;
+}
+
+.display-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 18px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.view-option {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.74);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.view-option.is-active {
+  border-color: var(--coin-dark);
+  background: rgba(185, 130, 34, 0.18);
+  color: var(--coin-dark);
+}
 .sticky-tools {
   padding: 12px 0 10px;
 }
@@ -138,6 +209,7 @@ select:disabled {
 }
 
 .reset-button,
+.mobile-filter-toggle,
 .sort-action,
 .details-toggle,
 .watch-coin-button,
@@ -163,6 +235,10 @@ select:disabled {
   background: transparent;
   color: var(--ink);
   font-size: 0.78rem;
+}
+
+.mobile-filter-toggle {
+  display: none;
 }
 
 .detail-coin-action {
@@ -288,6 +364,21 @@ select:disabled {
 .view-images {
   grid-template-columns: repeat(8, minmax(0, 1fr));
 }
+
+.view-images .inventory-card {
+  min-height: 150px;
+}
+
+.view-images .item-image {
+  min-height: 112px;
+  padding: 10px 8px 0;
+}
+
+.view-images .coin-flip {
+  width: 94px;
+  height: 94px;
+}
+
 
 .view-detailed {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -535,6 +626,11 @@ dd {
   display: none;
 }
 
+.view-list .inventory-card.missing {
+  border-style: dashed;
+}
+
+
 .view-images .details-toggle,
 .view-images .item-details {
   display: none;
@@ -620,6 +716,21 @@ dd {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
+.view-images .inventory-card {
+  min-height: 150px;
+}
+
+.view-images .item-image {
+  min-height: 112px;
+  padding: 10px 8px 0;
+}
+
+.view-images .coin-flip {
+  width: 94px;
+  height: 94px;
+}
+
+
   .view-detailed {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -649,13 +760,63 @@ dd {
   }
 
   .filters {
-    grid-template-columns: 1fr;
-    border-radius: 0;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    align-items: end;
+    border-radius: 22px;
+    padding: 10px;
+  }
+
+  .mobile-filter-toggle {
+    display: inline-flex;
+    white-space: nowrap;
+  }
+
+  .filters .filter-search {
+    min-width: 0;
+  }
+
+  .filters > label:not(.filter-search),
+  .filters > .sort-label {
+    display: none;
+  }
+
+  .filters.is-mobile-open > label:not(.filter-search),
+  .filters.is-mobile-open > .sort-label {
+    display: grid;
+    grid-column: 1 / -1;
+  }
+
+  .filters .reset-button {
+    justify-self: stretch;
+  }
+
+  .filters.is-mobile-open .reset-button {
+    grid-column: 1 / -1;
+  }
+
+  .result-line {
+    font-size: 0.82rem;
   }
 
   .view-images {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+.view-images .inventory-card {
+  min-height: 150px;
+}
+
+.view-images .item-image {
+  min-height: 112px;
+  padding: 10px 8px 0;
+}
+
+.view-images .coin-flip {
+  width: 94px;
+  height: 94px;
+}
+
 
   .view-detailed {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1174,5 +1335,154 @@ select:focus {
   border-color: rgba(185, 130, 34, 0.7);
   box-shadow: 0 0 0 3px rgba(185, 130, 34, 0.12);
   outline: none;
+}
+
+/* Current view sizing overrides */
+.view-images {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.view-images .item-image {
+  min-height: 220px;
+  padding: 8px;
+  background:
+    linear-gradient(135deg, rgba(185, 130, 34, 0.16), rgba(255, 250, 240, 0.6)),
+    var(--paper-strong);
+}
+
+.view-images .banknote .item-image {
+  background:
+    linear-gradient(135deg, rgba(47, 103, 82, 0.18), rgba(255, 250, 240, 0.62)),
+    var(--paper-strong);
+}
+
+.view-images .coin-flip {
+  width: min(92%, 190px);
+  height: 190px;
+}
+
+.view-images .banknote .coin-flip {
+  width: min(96%, 260px);
+  height: 164px;
+}
+
+.view-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.view-list .list-header {
+  grid-column: 1 / -1;
+}
+
+.view-list .list-header,
+.view-list .list-row {
+  grid-template-columns: 0.9fr 1fr 0.8fr 74px;
+}
+
+.view-list .list-action .watch-coin-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+}
+
+.view-list .list-thumb {
+  width: 38px;
+  height: 38px;
+}
+
+.view-list .banknote .list-thumb {
+  width: 52px;
+  height: 32px;
+}
+
+@media (max-width: 1180px) {
+  .view-images {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .view-images {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .view-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .view-list .list-header,
+  .view-list .list-row {
+    grid-template-columns: 0.85fr 1fr 58px;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .view-list .list-type,
+  .view-list .list-header span:nth-last-child(2) {
+    display: none;
+  }
+
+  .view-list .list-thumb {
+    width: 34px;
+    height: 34px;
+  }
+
+  .view-list .banknote .list-thumb {
+    width: 46px;
+    height: 28px;
+  }
+}
+
+/* Minimal year list view */
+.view-list {
+  display: block;
+}
+
+.view-list .year-list-group {
+  margin: 0 0 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.72);
+  color: var(--ink);
+  font-size: clamp(0.95rem, 2vw, 1.18rem);
+  font-weight: 900;
+  line-height: 2.1;
+}
+
+.year-list-item {
+  display: inline;
+  min-height: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.year-list-item:hover {
+  background: rgba(185, 130, 34, 0.16);
+  color: var(--coin-dark);
+  transform: none;
+}
+
+.year-list-item:active {
+  transform: scale(0.98);
+}
+
+.year-separator {
+  margin: 0 8px;
+  color: var(--muted);
+}
+
+.priority-country-option {
+  font-weight: 900;
+}
+
+.priority-set-option {
+  font-weight: 900;
 }
 

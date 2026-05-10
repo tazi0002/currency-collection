@@ -1,9 +1,14 @@
 const inventory = Array.isArray(window.collectionInventory) ? window.collectionInventory : [];
+const missingCoins = Array.isArray(window.missingCoins) ? window.missingCoins : [];
 const PAGE_SIZE = 48;
 const STORAGE_KEY = "currencyCollectionConfig";
+const NORMAL_SET_FILTER = "__normal_circulation";
+const SPECIAL_SET_FILTER = "__all_special_coins";
 
 let visibleCount = PAGE_SIZE;
 let currentFilteredInventory = [];
+let activeView = "inventory";
+let cardView = "images";
 let sortState = {
   key: "year",
   direction: "asc"
@@ -14,6 +19,10 @@ let overlayTurnTimer = null;
 let overlayNavAnimating = false;
 
 const elements = {
+  filters: document.querySelector("#filters"),
+  inventoryTitle: document.querySelector("#inventory-title"),
+  viewTabs: document.querySelectorAll("[data-view]"),
+  cardViewButtons: document.querySelectorAll("[data-card-view]"),
   totalItems: document.querySelector("#totalItems"),
   coinCount: document.querySelector("#coinCount"),
   banknoteCount: document.querySelector("#banknoteCount"),
@@ -30,6 +39,7 @@ const elements = {
   yearFilter: document.querySelector("#yearFilter"),
   sortSelect: document.querySelector("#sortSelect"),
   sortMenu: document.querySelector("#sortMenu"),
+  mobileFilterToggle: document.querySelector("#mobileFilterToggle"),
   resetFilters: document.querySelector("#resetFilters"),
   coinOverlay: document.querySelector("#coinOverlay"),
   overlayPanel: document.querySelector(".coin-overlay-panel"),
@@ -43,6 +53,8 @@ const elements = {
 
 function getPageConfig() {
   return {
+    activeView,
+    cardView,
     search: elements.searchFilter.value,
     type: elements.typeFilter.value,
     country: elements.countryFilter.value,
@@ -68,9 +80,16 @@ function restorePageConfig() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     if (!saved) return;
 
+
+    activeView = saved.activeView === "missing" ? "missing" : "inventory";
+    cardView = saved.cardView === "list" ? "list" : "images";
+    updateViewTabs();
+    updateInventoryTitle();
+    updateCardView();
     elements.searchFilter.value = saved.search || "";
     elements.typeFilter.value = saved.type || "all";
     refreshCountryOptions(saved.country || "all");
+    refreshYearOptions(saved.year || "all");
     refreshValueOptions();
     refreshSetOptions();
     elements.valueFilter.value = [...elements.valueFilter.options].some((option) => option.value === saved.value) ? saved.value : "all";
@@ -238,8 +257,16 @@ function titleCaseValue(value) {
   return label(value).toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatNumberGroups(value) {
+  return String(value ?? "").replace(/\d{4,}/g, (match) => Number(match).toLocaleString("en-US"));
+}
+
+function formatValueLabel(value) {
+  return titleCaseValue(formatNumberGroups(value));
+}
+
 function getDisplayValue(item) {
-  const value = titleCaseValue(item.value);
+  const value = formatValueLabel(item.value);
 
   if (item.country === "Canada") {
     return value.replace(/Dollar\b/, "Canadian Dollar").replace(/Dollars\b/, "Canadian Dollars").replace(/Cent\b/, "Canadian Cent").replace(/Cents\b/, "Canadian Cents");
@@ -248,7 +275,99 @@ function getDisplayValue(item) {
   return value;
 }
 
+function getCoinMaterial(item) {
+  const year = getSortYear(item.year);
+  const value = normalize(item.value);
+
+  if (item.status !== "missing" || item.material !== "Not listed") return label(item.material);
+  if (value === "1 cent") {
+    if (year >= 2000) return "Copper-plated steel";
+    if (year >= 1997) return "Copper-plated zinc";
+    if (year >= 1978) return "Copper-heavy alloy";
+    return "Bronze";
+  }
+  if (value === "5 cents") {
+    if (year <= 1921) return "Silver";
+    if (year >= 2000) return "Multi-ply plated steel";
+    if (year >= 1982) return "Cupro-nickel";
+    if (year >= 1942 && year <= 1945) return "Wartime tombac or steel issue";
+    return "Nickel";
+  }
+  if (value === "10 cents") {
+    if (year <= 1967) return "Silver";
+    if (year >= 2000) return "Nickel-plated steel";
+    return "Nickel";
+  }
+  if (value === "25 cents") {
+    if (year <= 1967) return "Silver";
+    if (year >= 2000) return "Nickel-plated steel";
+    return "Nickel";
+  }
+  if (value === "1 dollar") {
+    if (year <= 1967) return "Silver";
+    if (year <= 1986) return "Nickel";
+    if (year >= 2012) return "Brass-plated steel";
+    return "Bronze-plated nickel";
+  }
+  if (value === "2 dollars") {
+    if (year >= 2012) return "Plated steel ring with brass-plated core";
+    return "Bi-metallic nickel ring with aluminum-bronze core";
+  }
+  return label(item.material);
+}
+
+function getMissingCoinNotes(item) {
+  const year = getSortYear(item.year);
+  const value = normalize(item.value);
+  const name = label(item.name);
+
+  if (item.status !== "missing") return item.notes;
+  if (item.collectionSet === "Special Collection") return name.replace(/^Canadian\s+/i, "");
+
+  if (value === "1 cent") {
+    if ([1923, 1925].includes(year)) return "Key rarity: very low mintage small cent.";
+    if (year === 1936) return "Notable variant year: 1936 Dot is a major rarity.";
+    if (year === 1955) return "Notable variant: No Shoulder Fold variety.";
+    if (year === 2006) return "Notable variants: logo, no-logo, P, and rare non-magnetic no-logo/no-P error.";
+    if (year === 1967) return "Centennial Rock Dove design.";
+    if (year === 2012) return "Final production year for the Canadian penny.";
+  }
+  if (value === "5 cents") {
+    if (year === 1921) return "Key rarity: 1921 silver 5-cent, most mintage melted.";
+    if (year >= 1943 && year <= 1945) return "Victory V wartime design with Morse code rim message.";
+    if (year === 1951) return "Nickel Refinery commemorative design.";
+    if (year === 1953) return "Shoulder Fold and No Shoulder Fold varieties exist.";
+    if (year === 1967) return "Centennial Hare design.";
+  }
+  if (value === "10 cents") {
+    if (year === 1936) return "Key variant year: Dot or Bar dime varieties are rare.";
+    if (year === 1967) return "Centennial Mackerel design.";
+    if (year === 1968) return "Transition year: silver and nickel versions exist.";
+    if (year === 2021) return "Bluenose 100th anniversary, including colourized version.";
+  }
+  if (value === "25 cents") {
+    if (year === 1973) return "RCMP Centennial Mountie design.";
+    if (year === 1992) return "Canada 125 provincial and territorial quarter series.";
+    if (year === 1999 || year === 2000) return "Millennium quarter series year.";
+    if (year >= 2007 && year <= 2010) return "Vancouver Olympics or Paralympics quarter era.";
+  }
+  if (value === "1 dollar") {
+    if (year === 1948) return "Key rarity: 1948 silver dollar has very low mintage.";
+    if (year === 1987) return "First modern Loonie year.";
+    if (year === 2023) return "King Charles III transition year.";
+  }
+  if (value === "2 dollars") {
+    if (year === 1996) return "First Toonie year; German planchet variety exists.";
+    if (year === 2012) return "Security feature transition year.";
+    if (year === 2017) return "Dance of the Spirits glow-in-the-dark commemorative year.";
+    if (year === 2022) return "Black-ring Queen Elizabeth II memorial issue.";
+  }
+
+  return "Missing from collection.";
+}
+
 function getKeyCollectibles(item) {
+  if (item.status === "missing") return getMissingCoinNotes(item);
   if (item.notes) return item.notes;
   if (item.type === "coin" && item.collectionSet !== "Canada Circulation") return item.name;
   return "None listed";
@@ -258,7 +377,7 @@ function getTypeName(item) {
 }
 
 function getItemTypeLabel(item) {
-  return `${getTypeName(item)} ${label(item.value)}`;
+  return `${getTypeName(item)} ${formatValueLabel(item.value)}`;
 }
 
 function clearSelect(select, firstLabel) {
@@ -273,9 +392,17 @@ function addSelectOptions(select, values) {
   values.forEach((value) => {
     const option = document.createElement("option");
     option.value = String(value);
-    option.textContent = String(value);
+    option.textContent = select === elements.valueFilter ? formatValueLabel(value) : String(value);
     select.appendChild(option);
   });
+}
+
+function addSetQuickOption(value, labelText) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = labelText;
+  option.className = "priority-set-option";
+  elements.setFilter.appendChild(option);
 }
 
 function getCountryContinent(country) {
@@ -390,9 +517,39 @@ function matchesCountrySelection(item, selection) {
   return item.country === selection;
 }
 
+
+function getActiveItems() {
+  return activeView === "missing" ? missingCoins : inventory;
+}
+
+function updateInventoryTitle() {
+  if (elements.inventoryTitle) {
+    elements.inventoryTitle.textContent = activeView === "missing" ? "Missing" : "Inventory";
+  }
+}
+
+function updateViewTabs() {
+  elements.viewTabs.forEach((tab) => {
+    const isActive = tab.dataset.view === activeView;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function refreshYearOptions(preferredValue = elements.yearFilter.value) {
+  const years = uniqueSorted(getActiveItems().map((item) => ({ decade: getDecadeLabel(item.year) })), "decade");
+
+  clearSelect(elements.yearFilter, "All years");
+  addSelectOptions(elements.yearFilter, years);
+  elements.yearFilter.value = years.includes(preferredValue) ? preferredValue : "all";
+}
+
+function canOpenOverlay(item) {
+  return Boolean(item && (item.status === "missing" || hasAnyImage(item)));
+}
 function getItemsForSelectedType() {
   const type = elements.typeFilter.value;
-  return inventory.filter((item) => type === "all" || item.type === type);
+  return getActiveItems().filter((item) => type === "all" || item.type === type);
 }
 
 function refreshCountryOptions(preferredValue = elements.countryFilter.value) {
@@ -400,7 +557,13 @@ function refreshCountryOptions(preferredValue = elements.countryFilter.value) {
   const continentCounts = new Map();
 
   clearSelect(elements.countryFilter, "All countries");
-  addSelectOptions(elements.countryFilter, ["Iran", "Canada"].filter((country) => items.some((item) => item.country === country)));
+    ["Iran", "Canada"].filter((country) => items.some((item) => item.country === country)).forEach((country) => {
+    const option = document.createElement("option");
+    option.value = country;
+    option.textContent = country;
+    option.className = "priority-country-option";
+    elements.countryFilter.appendChild(option);
+  });
 
   items.forEach((item) => {
     if (["Iran", "Canada"].includes(item.country)) return;
@@ -425,14 +588,18 @@ function refreshCountryOptions(preferredValue = elements.countryFilter.value) {
 function getItemsForCountryOptions() {
   const type = elements.typeFilter.value;
   const country = elements.countryFilter.value;
+  const value = elements.valueFilter.value;
+  const decade = elements.yearFilter.value;
 
   if (country === "all") {
     return [];
   }
 
-  return inventory.filter((item) => {
+  return getActiveItems().filter((item) => {
     return (type === "all" || item.type === type)
-      && matchesCountrySelection(item, country);
+      && matchesCountrySelection(item, country)
+      && (value === "all" || item.value === value)
+      && (decade === "all" || getDecadeLabel(item.year) === decade);
   });
 }
 
@@ -447,28 +614,49 @@ function refreshValueOptions() {
   elements.valueFilter.value = values.includes(currentValue) ? currentValue : "all";
 }
 
+function getSetOptionItems() {
+  const type = elements.typeFilter.value;
+  const country = elements.countryFilter.value;
+
+  if (activeView === "missing" && country === "Canada" && (type === "all" || type === "coin")) {
+    return missingCoins.filter((item) => item.country === "Canada" && item.type === "coin");
+  }
+
+  return getItemsForCountryOptions();
+}
+
 function refreshSetOptions() {
   const currentSet = elements.setFilter.value;
-  const sets = uniqueSorted(getItemsForCountryOptions(), "collectionSet");
+  const optionItems = getSetOptionItems();
+  const sets = uniqueSorted(optionItems, "collectionSet")
+    .filter((set) => set !== "Special Collection");
+  const showCoinQuickOptions = optionItems.some((item) => item.type === "coin");
+  const quickValues = showCoinQuickOptions ? [NORMAL_SET_FILTER, SPECIAL_SET_FILTER] : [];
+  const availableValues = ["all", ...quickValues, ...sets];
 
   clearSelect(elements.setFilter, "All sets");
   elements.setFilter.disabled = elements.countryFilter.value === "all";
+  if (!elements.setFilter.disabled && showCoinQuickOptions) {
+    addSetQuickOption(NORMAL_SET_FILTER, "All normal circulations");
+    addSetQuickOption(SPECIAL_SET_FILTER, "All especials");
+  }
   addSelectOptions(elements.setFilter, sets);
 
-  elements.setFilter.value = sets.includes(currentSet) ? currentSet : "all";
+  elements.setFilter.value = availableValues.includes(currentSet) ? currentSet : "all";
 }
 
 function setupFilters() {
   refreshCountryOptions();
-  addSelectOptions(elements.yearFilter, uniqueSorted(inventory.map((item) => ({ decade: getDecadeLabel(item.year) })), "decade"));
+  refreshYearOptions();
   refreshValueOptions();
   refreshSetOptions();
 }
 
 function updateSummary() {
-  elements.totalItems.textContent = inventory.length;
-  elements.coinCount.textContent = inventory.filter((item) => item.type === "coin").length;
-  elements.banknoteCount.textContent = inventory.filter((item) => item.type === "banknote").length;
+  const items = getActiveItems();
+  elements.totalItems.textContent = items.length;
+  elements.coinCount.textContent = items.filter((item) => item.type === "coin").length;
+  elements.banknoteCount.textContent = items.filter((item) => item.type === "banknote").length;
 }
 
 function updateSortButtons() {
@@ -481,6 +669,29 @@ function updateSortButtons() {
     button.textContent = `${label} ${button.dataset.sortKey === sortState.key ? arrow : ""}`.trim();
     button.classList.toggle("is-active", button.dataset.sortKey === sortState.key);
   });
+}
+
+function getActiveFilterCount() {
+  return [
+    elements.searchFilter.value.trim(),
+    elements.typeFilter.value !== "all",
+    elements.countryFilter.value !== "all",
+    elements.valueFilter.value !== "all",
+    elements.setFilter.value !== "all",
+    elements.yearFilter.value !== "all"
+  ].filter(Boolean).length;
+}
+
+function updateMobileFilterToggle() {
+  const count = getActiveFilterCount();
+  const suffix = count ? ` (${count})` : "";
+
+  elements.mobileFilterToggle.textContent = `Filter${suffix}`;
+}
+
+function setMobileFiltersOpen(isOpen) {
+  elements.filters.classList.toggle("is-mobile-open", isOpen);
+  elements.mobileFilterToggle.setAttribute("aria-expanded", String(isOpen));
 }
 
 function handleSortAction(key) {
@@ -496,7 +707,12 @@ function handleSortAction(key) {
 
 function updateCardView() {
   elements.grid.classList.remove("view-list", "view-images", "view-detailed");
-  elements.grid.classList.add("view-detailed");
+  elements.grid.classList.add(cardView === "list" ? "view-list" : "view-images");
+  elements.cardViewButtons.forEach((button) => {
+    const isActive = button.dataset.cardView === cardView;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function getSortValue(item, key) {
@@ -510,6 +726,13 @@ function compareValues(a, b) {
   return String(a).localeCompare(String(b), undefined, { numeric: true });
 }
 
+function matchesSetFilter(item, set) {
+  if (set === "all") return true;
+  if (set === NORMAL_SET_FILTER) return item.collectionSet === "Canada Circulation";
+  if (set === SPECIAL_SET_FILTER) return item.type === "coin" && item.collectionSet !== "Canada Circulation";
+  return item.collectionSet === set;
+}
+
 function getFilteredInventory() {
   const search = normalize(elements.searchFilter.value);
   const type = elements.typeFilter.value;
@@ -518,8 +741,8 @@ function getFilteredInventory() {
   const set = elements.setFilter.value;
   const decade = elements.yearFilter.value;
 
-  return inventory.filter((item) => {
-    if (item.type === "coin" && !hasAnyImage(item)) return false;
+  return getActiveItems().filter((item) => {
+    if (activeView === "inventory" && item.type === "coin" && !hasAnyImage(item)) return false;
 
     const searchableText = normalize([
       item.name,
@@ -537,7 +760,7 @@ function getFilteredInventory() {
       && (type === "all" || item.type === type)
       && matchesCountrySelection(item, country)
       && (value === "all" || item.value === value)
-      && (set === "all" || item.collectionSet === set)
+      && matchesSetFilter(item, set)
       && (decade === "all" || getDecadeLabel(item.year) === decade);
   }).sort((a, b) => {
     const primary = compareValues(getSortValue(a, sortState.key), getSortValue(b, sortState.key));
@@ -582,7 +805,7 @@ function getImageMarkup(item) {
 }
 
 function getItemById(id) {
-  return inventory.find((item) => item.id === id);
+  return [...inventory, ...missingCoins].find((item) => item.id === id);
 }
 
 function hasImage(item, side) {
@@ -636,11 +859,99 @@ function getCoinFaceDescription(item, side) {
 }
 
 function getWatchButton(item) {
-  const buttonLabel = item.type === "banknote" ? "See banknote" : "See coin";
+  if (!canOpenOverlay(item)) return "";
+  const buttonLabel = item.status === "missing" ? "Details" : item.type === "banknote" ? "See banknote" : "See coin";
   return `<button class="watch-coin-button" type="button" data-coin-id="${item.id}">${buttonLabel}</button>`;
 }
 
+
+function getListActionMarkup(item) {
+  if (item.status === "missing") return getWatchButton(item);
+
+  return `
+    <button class="list-thumb coin-flip" type="button" aria-label="Open ${label(item.name)}">
+      <span class="coin-flip-inner">
+        <span class="coin-face coin-front">${getFaceMarkup(item, item.type === "coin" ? "back" : "front")}</span>
+        <span class="coin-face coin-back">${getFaceMarkup(item, item.type === "coin" ? "front" : "back")}</span>
+      </span>
+    </button>
+  `;
+}
+function isSpecialListItem(item) {
+  if (item.type !== "coin") return false;
+  return item.collectionSet && item.collectionSet !== "Canada Circulation";
+}
+
+function getListYearLabel(item) {
+  const baseYear = label(item.year);
+  if (item.type === "banknote") {
+    const languageMatch = String(item.name || "").match(/\((English|French)\)/i);
+    const language = languageMatch ? ` (${languageMatch[1]})` : "";
+    return `${formatValueLabel(item.value)}${language}`;
+  }
+  if (!isSpecialListItem(item)) return baseYear;
+
+  const detail = label(item.name)
+    .replace(/^Canadian\s+/i, "")
+    .replace(/\s+Coin$/i, "")
+    .trim();
+
+  return detail && detail !== baseYear ? `${baseYear} (${detail})` : baseYear;
+}
+
+function getListPrimaryGroup(item) {
+  if (item.type === "coin") {
+    const selectedCountry = elements.countryFilter.value;
+    return ["Canada", "Iran"].includes(selectedCountry) ? formatValueLabel(item.value) : "";
+  }
+
+  if (item.type === "banknote") {
+    const setLabel = getSetLabel(item);
+    if (setLabel && setLabel !== "Not listed") return setLabel;
+    if (item.country) return label(item.country);
+    return getCountryGroup(item);
+  }
+
+  return "";
+}
+
+function renderYearListGroup(items) {
+  const decadeGroups = new Map();
+
+  items.forEach((item) => {
+    const decade = getDecadeLabel(item.year);
+    if (!decadeGroups.has(decade)) decadeGroups.set(decade, []);
+    decadeGroups.get(decade).push(item);
+  });
+
+  return [...decadeGroups.entries()].map(([, groupItems]) => `
+    <div class="year-list-group">
+      ${groupItems.map((item, index) => `
+        ${index ? '<span class="year-separator">-</span>' : ''}
+        <button class="year-list-item" type="button" data-coin-id="${item.id}">${getListYearLabel(item)}</button>
+      `).join("")}
+    </div>
+  `).join("");
+}
+
+function renderYearList(items) {
+  const primaryGroups = new Map();
+
+  items.forEach((item) => {
+    const primaryGroup = getListPrimaryGroup(item);
+    if (!primaryGroups.has(primaryGroup)) primaryGroups.set(primaryGroup, []);
+    primaryGroups.get(primaryGroup).push(item);
+  });
+
+  return [...primaryGroups.entries()].map(([groupName, groupItems]) => `
+    <section class="year-list-section">
+      ${groupName ? `<h2 class="year-list-title">${groupName}</h2>` : ""}
+      ${renderYearListGroup(groupItems)}
+    </section>
+  `).join("");
+}
 function renderListHeader() {
+
   const columns = [
     ["year", "Year"],
     ["value", "Face value"]
@@ -653,6 +964,7 @@ function renderListHeader() {
           ${title}${sortState.key === key ? (sortState.direction === "asc" ? " \u2193" : " \u2191") : ""}
         </button>
       `).join("")}
+      <span>Type</span>
       <span></span>
     </div>
   `;
@@ -660,18 +972,18 @@ function renderListHeader() {
 
 function renderCard(item) {
   return `
-    <article class="inventory-card ${item.type}" data-coin-id="${item.id}">
+    <article class="inventory-card ${item.type} ${item.status === "missing" ? "missing" : ""}" data-coin-id="${item.id}">
       <div class="list-row">
         <span class="list-year">${label(item.year)}</span>
-        <span class="list-value">${label(item.value)}</span>
+        <span class="list-value">${formatValueLabel(item.value)}</span>
         <span class="list-type">${getTypeName(item)}</span>
-        <span class="list-action">${getWatchButton(item)}</span>
+        <span class="list-action">${getListActionMarkup(item)}</span>
       </div>
       <div class="item-image">
         ${getImageMarkup(item)}
       </div>
       <div class="item-quick">
-        <span class="item-value">${label(item.value)}</span>
+        <span class="item-value">${formatValueLabel(item.value)}</span>
         <span class="item-year">${label(item.year)}</span>
       </div>
     </article>
@@ -696,7 +1008,7 @@ function renderOverlayDetails(item) {
       <div><dt>Year</dt><dd>${label(item.year)}</dd></div>
       <div><dt>Type</dt><dd>${getTypeName(item)}</dd></div>
       <div><dt>Set</dt><dd>${getSetLabel(item)}</dd></div>
-      <div><dt>Material</dt><dd>${label(item.material)}</dd></div>
+      <div><dt>Material</dt><dd>${getCoinMaterial(item)}</dd></div>
       <div><dt>Condition</dt><dd>${label(item.condition)}</dd></div>
       <div><dt>Key Collectibles</dt><dd>${getKeyCollectibles(item)}</dd></div>
     </dl>
@@ -855,20 +1167,32 @@ function renderInventory(resetVisible = true) {
   }
 
   currentFilteredInventory = getFilteredInventory();
-  const visibleItems = currentFilteredInventory.slice(0, visibleCount);
-  const listHeader = "";
+  const visibleItems = cardView === "list" ? currentFilteredInventory : currentFilteredInventory.slice(0, visibleCount);
+  const renderedItems = cardView === "list" ? renderYearList(visibleItems) : visibleItems.map(renderCard).join("");
+
+  updateInventoryTitle();
+  updateViewTabs();
+  updateSummary();
+  updateCardView();
+  const hasMoreItems = cardView !== "list" && visibleCount < currentFilteredInventory.length;
+  if (!hasMoreItems) {
+    visibleCount = currentFilteredInventory.length;
+  }
 
   elements.resultCount.textContent = currentFilteredInventory.length;
   elements.shownCount.textContent = visibleItems.length;
-  elements.grid.innerHTML = listHeader + visibleItems.map(renderCard).join("");
+  elements.grid.innerHTML = renderedItems;
   elements.emptyState.hidden = currentFilteredInventory.length > 0;
-  elements.seeMoreButton.hidden = visibleItems.length >= currentFilteredInventory.length;
+  elements.seeMoreButton.hidden = !hasMoreItems;
+  elements.seeMoreButton.setAttribute("aria-hidden", String(!hasMoreItems));
+  updateMobileFilterToggle();
 }
 
 function resetAllFilters() {
   elements.searchFilter.value = "";
   elements.typeFilter.value = "all";
   refreshCountryOptions("all");
+  refreshYearOptions("all");
   elements.countryFilter.value = "all";
   elements.setFilter.value = "all";
   elements.yearFilter.value = "all";
@@ -887,8 +1211,12 @@ function handleFilterChange(event) {
     refreshCountryOptions();
   }
 
-  if (event.target === elements.typeFilter || event.target === elements.countryFilter) {
-    refreshValueOptions();
+  if (event.target === elements.typeFilter) {
+    refreshYearOptions();
+  }
+
+  if (event.target === elements.typeFilter || event.target === elements.countryFilter || event.target === elements.valueFilter || event.target === elements.yearFilter) {
+    if (event.target !== elements.valueFilter) refreshValueOptions();
     refreshSetOptions();
   }
 
@@ -910,6 +1238,36 @@ function handleFilterChange(event) {
 });
 
 
+
+elements.viewTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const nextView = tab.dataset.view === "missing" ? "missing" : "inventory";
+    if (nextView === activeView) return;
+
+    activeView = nextView;
+    visibleCount = PAGE_SIZE;
+    elements.typeFilter.value = "all";
+    refreshCountryOptions("all");
+    refreshYearOptions("all");
+    refreshValueOptions();
+    refreshSetOptions();
+    updateSortButtons();
+    updateSummary();
+    updateCardView();
+    savePageConfig();
+    renderInventory();
+  });
+});
+
+
+elements.cardViewButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    cardView = button.dataset.cardView === "list" ? "list" : "images";
+    updateCardView();
+    savePageConfig();
+    renderInventory(false);
+  });
+});
 elements.sortSelect.addEventListener("click", () => {
   const isOpen = elements.sortSelect.getAttribute("aria-expanded") === "true";
   elements.sortSelect.setAttribute("aria-expanded", String(!isOpen));
@@ -932,8 +1290,17 @@ document.addEventListener("click", (event) => {
   elements.sortSelect.setAttribute("aria-expanded", "false");
 });
 elements.resetFilters.addEventListener("click", resetAllFilters);
+elements.mobileFilterToggle.addEventListener("click", () => {
+  setMobileFiltersOpen(!elements.filters.classList.contains("is-mobile-open"));
+});
 elements.seeMoreButton.addEventListener("click", () => {
-  visibleCount += PAGE_SIZE;
+  if (visibleCount >= currentFilteredInventory.length) {
+    elements.seeMoreButton.hidden = true;
+    elements.seeMoreButton.setAttribute("aria-hidden", "true");
+    return;
+  }
+
+  visibleCount = Math.min(visibleCount + PAGE_SIZE, currentFilteredInventory.length);
   savePageConfig();
   renderInventory(false);
 });
@@ -1038,18 +1405,27 @@ elements.grid.addEventListener("click", (event) => {
     return;
   }
 
+  const yearButton = event.target.closest(".year-list-item");
+  if (yearButton) {
+    const item = getItemById(yearButton.dataset.coinId);
+    if (canOpenOverlay(item)) openCoinOverlay(item);
+    return;
+  }
+
   const flipButton = event.target.closest(".coin-flip");
   if (flipButton) {
     const card = flipButton.closest(".inventory-card");
     if (card) {
-      openCoinOverlay(getItemById(card.dataset.coinId));
+      const item = getItemById(card.dataset.coinId);
+      if (canOpenOverlay(item)) openCoinOverlay(item);
     }
     return;
   }
 
   const watchButton = event.target.closest(".watch-coin-button");
   if (watchButton) {
-    openCoinOverlay(getItemById(watchButton.dataset.coinId));
+    const item = getItemById(watchButton.dataset.coinId);
+    if (canOpenOverlay(item)) openCoinOverlay(item);
     return;
   }
 
@@ -1058,6 +1434,10 @@ elements.grid.addEventListener("click", (event) => {
 
 setupFilters();
 restorePageConfig();
+refreshCountryOptions(elements.countryFilter.value);
+refreshYearOptions(elements.yearFilter.value);
+refreshValueOptions();
+refreshSetOptions();
 updateSummary();
 updateSortButtons();
 updateCardView();
