@@ -11,6 +11,7 @@ let sortState = {
 let overlayItem = null;
 let overlaySide = "front";
 let overlayTurnTimer = null;
+let overlayNavAnimating = false;
 
 const elements = {
   totalItems: document.querySelector("#totalItems"),
@@ -69,7 +70,7 @@ function restorePageConfig() {
 
     elements.searchFilter.value = saved.search || "";
     elements.typeFilter.value = saved.type || "all";
-    elements.countryFilter.value = saved.country || "all";
+    refreshCountryOptions(saved.country || "all");
     refreshValueOptions();
     refreshSetOptions();
     elements.valueFilter.value = [...elements.valueFilter.options].some((option) => option.value === saved.value) ? saved.value : "all";
@@ -139,8 +140,97 @@ function getDecadeLabel(value) {
 
 function getCountryCode(country) {
   return {
+    Afghanistan: "af",
+    Algeria: "dz",
+    Argentina: "ar",
+    Armenia: "am",
+    Australia: "au",
+    Azerbaijan: "az",
+    Bangladesh: "bd",
+    Belarus: "by",
+    Bolivia: "bo",
+    Brazil: "br",
+    Bulgaria: "bg",
+    Burundi: "bi",
+    Cambodia: "kh",
     Canada: "ca",
-    Iran: "ir"
+    China: "cn",
+    Croatia: "hr",
+    Cuba: "cu",
+    "Czech Republic": "cz",
+    Denmark: "dk",
+    "Dominican Republic": "do",
+    Drcongo: "cd",
+    Egypt: "eg",
+    "European Union": "eu",
+    Fiji: "fj",
+    Georgia: "ge",
+    Germany: "de",
+    Ghana: "gh",
+    Guinea: "gn",
+    Honduras: "hn",
+    Hongkong: "hk",
+    India: "in",
+    Indonesia: "id",
+    Iran: "ir",
+    Iraq: "iq",
+    Italy: "it",
+    Jamaica: "jm",
+    Japan: "jp",
+    Kenya: "ke",
+    Kuwait: "kw",
+    Laos: "la",
+    Lebanon: "lb",
+    Liberia: "lr",
+    Madagascar: "mg",
+    Malawi: "mw",
+    Malaysia: "my",
+    Mauritania: "mr",
+    Mexico: "mx",
+    Mozambique: "mz",
+    Myanmar: "mm",
+    Nepal: "np",
+    Nigeria: "ng",
+    "North Korea": "kp",
+    Norway: "no",
+    Oman: "om",
+    Pakistan: "pk",
+    Peru: "pe",
+    Philippines: "ph",
+    Qatar: "qa",
+    Romania: "ro",
+    Russia: "ru",
+    Saudiarabia: "sa",
+    Singapore: "sg",
+    Somalia: "so",
+    "South Africa": "za",
+    "South Korea": "kr",
+    Srilanka: "lk",
+    Suriname: "sr",
+    Sweden: "se",
+    Switzerland: "ch",
+    Syria: "sy",
+    Tanzania: "tz",
+    Thailand: "th",
+    Transnistria: "md",
+    "Trinidad and Tobago": "tt",
+    Tunisia: "tn",
+    Turkey: "tr",
+    Turkmenistan: "tm",
+    Uganda: "ug",
+    Ukraine: "ua",
+    "United Arab Emirates": "ae",
+    "United Kingdom": "gb",
+    Uruguay: "uy",
+    Usa: "us",
+    Ussr: "ru",
+    Venezuela: "ve",
+    Vietnam: "vn",
+    Yemen: "ye",
+    Yugoslavia: "rs",
+    Zaire: "cd",
+    Zambia: "zm",
+    Zimbabwe: "zw"
   }[country] || "";
 }
 
@@ -160,11 +250,11 @@ function getDisplayValue(item) {
 
 function getKeyCollectibles(item) {
   if (item.notes) return item.notes;
-  if (item.collectionSet === "Special Collection") return item.name;
+  if (item.type === "coin" && item.collectionSet !== "Canada Circulation") return item.name;
   return "None listed";
 }
 function getTypeName(item) {
-  return item.type === "banknote" ? "Bank note" : "Coin";
+  return item.type === "banknote" ? "Banknote" : "Coin";
 }
 
 function getItemTypeLabel(item) {
@@ -188,6 +278,150 @@ function addSelectOptions(select, values) {
   });
 }
 
+function getCountryContinent(country) {
+  return {
+    Afghanistan: "Asia",
+    Algeria: "Africa",
+    Argentina: "South America",
+    Armenia: "Asia",
+    Australia: "Oceania",
+    Azerbaijan: "Asia",
+    Bangladesh: "Asia",
+    Belarus: "Europe",
+    Bolivia: "South America",
+    Brazil: "South America",
+    Bulgaria: "Europe",
+    Burundi: "Africa",
+    Cambodia: "Asia",
+    China: "Asia",
+    Croatia: "Europe",
+    Cuba: "North America",
+    "Czech Republic": "Europe",
+    Denmark: "Europe",
+    "Dominican Republic": "North America",
+    Drcongo: "Africa",
+    Egypt: "Africa",
+    "European Union": "Europe",
+    Fiji: "Oceania",
+    Georgia: "Asia",
+    Germany: "Europe",
+    Ghana: "Africa",
+    Guinea: "Africa",
+    Honduras: "North America",
+    Hongkong: "Asia",
+    India: "Asia",
+    Indonesia: "Asia",
+    Iraq: "Asia",
+    Italy: "Europe",
+    Jamaica: "North America",
+    Japan: "Asia",
+    Kenya: "Africa",
+    Kuwait: "Asia",
+    Laos: "Asia",
+    Lebanon: "Asia",
+    Liberia: "Africa",
+    Madagascar: "Africa",
+    Malawi: "Africa",
+    Malaysia: "Asia",
+    Mauritania: "Africa",
+    Mexico: "North America",
+    Mozambique: "Africa",
+    Myanmar: "Asia",
+    Nepal: "Asia",
+    Nigeria: "Africa",
+    "North Korea": "Asia",
+    Norway: "Europe",
+    Oman: "Asia",
+    Pakistan: "Asia",
+    Peru: "South America",
+    Philippines: "Asia",
+    Qatar: "Asia",
+    Romania: "Europe",
+    Russia: "Europe",
+    Saudiarabia: "Asia",
+    Singapore: "Asia",
+    Somalia: "Africa",
+    "South Africa": "Africa",
+    "South Korea": "Asia",
+    Srilanka: "Asia",
+    Suriname: "South America",
+    Sweden: "Europe",
+    Switzerland: "Europe",
+    Syria: "Asia",
+    Tanzania: "Africa",
+    Thailand: "Asia",
+    Transnistria: "Europe",
+    "Trinidad and Tobago": "North America",
+    Tunisia: "Africa",
+    Turkey: "Asia",
+    Turkmenistan: "Asia",
+    Uganda: "Africa",
+    Ukraine: "Europe",
+    "United Arab Emirates": "Asia",
+    "United Kingdom": "Europe",
+    Uruguay: "South America",
+    Usa: "North America",
+    Ussr: "Europe",
+    Venezuela: "South America",
+    Vietnam: "Asia",
+    Yemen: "Asia",
+    Yugoslavia: "Europe",
+    Zaire: "Africa",
+    Zambia: "Africa",
+    Zimbabwe: "Africa"
+  }[country] || "";
+}
+
+function getCountryGroup(item) {
+  const countryContinent = getCountryContinent(item.country);
+  if (countryContinent) return countryContinent;
+
+  const match = String(item.collectionSet || "").match(/^(Europe|Asia|Africa|North America|South America|Oceania)\s+(Banknotes|Coins)$/);
+  return match ? match[1] : "Other Countries";
+}
+
+function isContinentFilter(value) {
+  return String(value).startsWith("continent:");
+}
+
+function matchesCountrySelection(item, selection) {
+  if (selection === "all") return true;
+  if (isContinentFilter(selection)) return getCountryGroup(item) === selection.replace("continent:", "");
+  return item.country === selection;
+}
+
+function getItemsForSelectedType() {
+  const type = elements.typeFilter.value;
+  return inventory.filter((item) => type === "all" || item.type === type);
+}
+
+function refreshCountryOptions(preferredValue = elements.countryFilter.value) {
+  const items = getItemsForSelectedType();
+  const continentCounts = new Map();
+
+  clearSelect(elements.countryFilter, "All countries");
+  addSelectOptions(elements.countryFilter, ["Iran", "Canada"].filter((country) => items.some((item) => item.country === country)));
+
+  items.forEach((item) => {
+    if (["Iran", "Canada"].includes(item.country)) return;
+    const continent = getCountryGroup(item);
+    if (!continent || continent === "Other Countries") return;
+    continentCounts.set(continent, (continentCounts.get(continent) || 0) + 1);
+  });
+
+  [...continentCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .forEach(([continent]) => {
+      const option = document.createElement("option");
+      option.value = `continent:${continent}`;
+      option.textContent = continent;
+      elements.countryFilter.appendChild(option);
+    });
+
+  elements.countryFilter.value = [...elements.countryFilter.options].some((option) => option.value === preferredValue)
+    ? preferredValue
+    : "all";
+}
 function getItemsForCountryOptions() {
   const type = elements.typeFilter.value;
   const country = elements.countryFilter.value;
@@ -198,7 +432,7 @@ function getItemsForCountryOptions() {
 
   return inventory.filter((item) => {
     return (type === "all" || item.type === type)
-      && item.country === country;
+      && matchesCountrySelection(item, country);
   });
 }
 
@@ -225,7 +459,7 @@ function refreshSetOptions() {
 }
 
 function setupFilters() {
-  addSelectOptions(elements.countryFilter, uniqueSorted(inventory, "country"));
+  refreshCountryOptions();
   addSelectOptions(elements.yearFilter, uniqueSorted(inventory.map((item) => ({ decade: getDecadeLabel(item.year) })), "decade"));
   refreshValueOptions();
   refreshSetOptions();
@@ -285,6 +519,8 @@ function getFilteredInventory() {
   const decade = elements.yearFilter.value;
 
   return inventory.filter((item) => {
+    if (item.type === "coin" && !hasAnyImage(item)) return false;
+
     const searchableText = normalize([
       item.name,
       item.country,
@@ -299,7 +535,7 @@ function getFilteredInventory() {
 
     return (!search || searchableText.includes(search))
       && (type === "all" || item.type === type)
-      && (country === "all" || item.country === country)
+      && matchesCountrySelection(item, country)
       && (value === "all" || item.value === value)
       && (set === "all" || item.collectionSet === set)
       && (decade === "all" || getDecadeLabel(item.year) === decade);
@@ -312,6 +548,10 @@ function getFilteredInventory() {
       || String(a.value).localeCompare(String(b.value), undefined, { numeric: true })
       || String(a.name).localeCompare(String(b.name));
   });
+}
+
+function hasAnyImage(item) {
+  return hasImage(item, "front") || hasImage(item, "back");
 }
 
 function getFaceMarkup(item, side) {
@@ -328,11 +568,14 @@ function getFaceMarkup(item, side) {
 }
 
 function getImageMarkup(item) {
+  const firstSide = item.type === "coin" ? "back" : "front";
+  const secondSide = item.type === "coin" ? "front" : "back";
+
   return `
     <button class="coin-flip" type="button" aria-label="Flip ${label(item.name)} to the other side">
       <span class="coin-flip-inner">
-        <span class="coin-face coin-front">${getFaceMarkup(item, "front")}</span>
-        <span class="coin-face coin-back">${getFaceMarkup(item, "back")}</span>
+        <span class="coin-face coin-front">${getFaceMarkup(item, firstSide)}</span>
+        <span class="coin-face coin-back">${getFaceMarkup(item, secondSide)}</span>
       </span>
     </button>
   `;
@@ -435,6 +678,10 @@ function renderCard(item) {
   `;
 }
 
+function getSetLabel(item) {
+  return label(String(item.collectionSet || "").replace(/\s+Banknotes?$/i, "").trim());
+}
+
 function renderOverlayDetails(item) {
   const countryCode = getCountryCode(item.country);
   const flag = countryCode ? `<img class="country-flag" src="https://flagcdn.com/${countryCode}.svg" alt="${label(item.country)} flag">` : "";
@@ -448,7 +695,7 @@ function renderOverlayDetails(item) {
       <div><dt>Value</dt><dd>${getDisplayValue(item)}</dd></div>
       <div><dt>Year</dt><dd>${label(item.year)}</dd></div>
       <div><dt>Type</dt><dd>${getTypeName(item)}</dd></div>
-      <div><dt>Set</dt><dd>${label(item.collectionSet)}</dd></div>
+      <div><dt>Set</dt><dd>${getSetLabel(item)}</dd></div>
       <div><dt>Material</dt><dd>${label(item.material)}</dd></div>
       <div><dt>Condition</dt><dd>${label(item.condition)}</dd></div>
       <div><dt>Key Collectibles</dt><dd>${getKeyCollectibles(item)}</dd></div>
@@ -457,6 +704,27 @@ function renderOverlayDetails(item) {
 }
 function renderOverlayBanknoteFace(item, side) {
   elements.overlayCoinInner.innerHTML = `<span class="coin-face coin-front">${getFaceMarkup(item, side)}</span>`;
+}
+
+function renderOverlayCoinFace(item, side) {
+  elements.overlayCoinInner.innerHTML = `<span class="coin-face coin-front">${getFaceMarkup(item, side)}</span>`;
+}
+
+function getFaceImageSource(item, side) {
+  const imageKey = side === "front" ? "frontImage" : "backImage";
+  return item[imageKey] || (side === "front" ? item.image : "");
+}
+
+function preloadOverlayImages(item) {
+  [getFaceImageSource(item, "front"), getFaceImageSource(item, "back")]
+    .filter(Boolean)
+    .forEach((src) => {
+      const image = new Image();
+      image.src = src;
+      if (typeof image.decode === "function") {
+        image.decode().catch(() => {});
+      }
+    });
 }
 
 function getOverlaySource() {
@@ -479,46 +747,103 @@ function updateOverlayNavigation() {
   elements.overlayNext.setAttribute("aria-disabled", String(nextDisabled));
 }
 
-function openOverlayByOffset(offset) {
-  const source = getOverlaySource();
-  const index = getOverlayIndex();
-  const nextItem = source[index + offset];
-
-  if (nextItem) {
-    openCoinOverlay(nextItem);
-  }
+function clearOverlayMotionClasses() {
+  elements.overlayCoin.classList.remove(
+    "is-flipped",
+    "is-twisting-out",
+    "is-twisting-in",
+    "is-nav-out-left",
+    "is-nav-in-left",
+    "is-nav-out-right",
+    "is-nav-in-right"
+  );
 }
 
-function openCoinOverlay(item) {
-  if (!item) return;
-
+function setOverlayItem(item) {
   overlayItem = item;
   overlaySide = "front";
   window.clearTimeout(overlayTurnTimer);
+  preloadOverlayImages(item);
   renderOverlayDetails(item);
-  elements.overlayCoin.classList.remove("is-flipped", "is-twisting-out", "is-twisting-in");
   elements.overlayCoin.classList.toggle("banknote", item.type === "banknote");
   elements.overlayPanel.classList.toggle("banknote", item.type === "banknote");
 
   if (item.type === "banknote") {
     renderOverlayBanknoteFace(item, "front");
   } else {
-    elements.overlayCoinInner.innerHTML = `
-      <span class="coin-face coin-front">${getFaceMarkup(item, "front")}</span>
-      <span class="coin-face coin-back">${getFaceMarkup(item, "back")}</span>
-    `;
+    renderOverlayCoinFace(item, "front");
   }
 
+  updateOverlayNavigation();
+}
+
+function animateOverlayToItem(nextItem, direction) {
+  if (overlayNavAnimating || !nextItem) return;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    clearOverlayMotionClasses();
+    setOverlayItem(nextItem);
+    return;
+  }
+
+  overlayNavAnimating = true;
+  elements.overlayPrev.disabled = true;
+  elements.overlayNext.disabled = true;
+  clearOverlayMotionClasses();
+
+  const outClass = direction === "left" ? "is-nav-out-left" : "is-nav-out-right";
+  const inClass = direction === "left" ? "is-nav-in-left" : "is-nav-in-right";
+
+  requestAnimationFrame(() => {
+    elements.overlayCoin.classList.add(outClass);
+  });
+
+  elements.overlayCoin.addEventListener("animationend", function handleOut(event) {
+    if (event.target !== elements.overlayCoinInner || !elements.overlayCoin.classList.contains(outClass)) return;
+
+    elements.overlayCoin.removeEventListener("animationend", handleOut);
+    elements.overlayCoin.classList.remove(outClass);
+    setOverlayItem(nextItem);
+
+    requestAnimationFrame(() => {
+      elements.overlayCoin.classList.add(inClass);
+      elements.overlayCoin.addEventListener("animationend", function handleIn(innerEvent) {
+        if (innerEvent.target !== elements.overlayCoinInner || !elements.overlayCoin.classList.contains(inClass)) return;
+
+        elements.overlayCoin.removeEventListener("animationend", handleIn);
+        elements.overlayCoin.classList.remove(inClass);
+        overlayNavAnimating = false;
+        updateOverlayNavigation();
+      });
+    });
+  });
+}
+
+function openOverlayByOffset(offset) {
+  const source = getOverlaySource();
+  const index = getOverlayIndex();
+  const nextItem = source[index + offset];
+
+  animateOverlayToItem(nextItem, offset < 0 ? "left" : "right");
+}
+
+function openCoinOverlay(item) {
+  if (!item) return;
+
+  overlayNavAnimating = false;
+  clearOverlayMotionClasses();
+  setOverlayItem(item);
   elements.coinOverlay.hidden = false;
   document.body.classList.add("overlay-open");
-  updateOverlayNavigation();
 }
 
 function closeCoinOverlay() {
   overlayItem = null;
   overlaySide = "front";
   window.clearTimeout(overlayTurnTimer);
-  elements.overlayCoin.classList.remove("is-flipped", "is-twisting-out", "is-twisting-in", "banknote");
+  overlayNavAnimating = false;
+  clearOverlayMotionClasses();
+  elements.overlayCoin.classList.remove("banknote");
   elements.overlayPanel.classList.remove("banknote");
   elements.coinOverlay.hidden = true;
   document.body.classList.remove("overlay-open");
@@ -543,6 +868,7 @@ function renderInventory(resetVisible = true) {
 function resetAllFilters() {
   elements.searchFilter.value = "";
   elements.typeFilter.value = "all";
+  refreshCountryOptions("all");
   elements.countryFilter.value = "all";
   elements.setFilter.value = "all";
   elements.yearFilter.value = "all";
@@ -557,6 +883,10 @@ function resetAllFilters() {
 }
 
 function handleFilterChange(event) {
+  if (event.target === elements.typeFilter) {
+    refreshCountryOptions();
+  }
+
   if (event.target === elements.typeFilter || event.target === elements.countryFilter) {
     refreshValueOptions();
     refreshSetOptions();
@@ -612,24 +942,71 @@ elements.overlayCoin.addEventListener("click", () => {
   if (!overlayItem) return;
 
   if (overlayItem.type !== "banknote") {
-    elements.overlayCoin.classList.toggle("is-flipped");
+    if (elements.overlayCoin.classList.contains("is-twisting-out") || elements.overlayCoin.classList.contains("is-twisting-in")) return;
+
+    const nextSide = overlaySide === "front" ? "back" : "front";
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      overlaySide = nextSide;
+      renderOverlayCoinFace(overlayItem, overlaySide);
+      return;
+    }
+
+    window.clearTimeout(overlayTurnTimer);
+    elements.overlayCoin.classList.add("is-twisting-out");
+
+    elements.overlayCoin.addEventListener("animationend", function handleCoinTwistOut(event) {
+      if (event.target !== elements.overlayCoinInner || !elements.overlayCoin.classList.contains("is-twisting-out")) return;
+
+      elements.overlayCoin.removeEventListener("animationend", handleCoinTwistOut);
+      overlaySide = nextSide;
+      renderOverlayCoinFace(overlayItem, overlaySide);
+      elements.overlayCoin.classList.remove("is-twisting-out");
+
+      requestAnimationFrame(() => {
+        elements.overlayCoin.classList.add("is-twisting-in");
+        elements.overlayCoin.addEventListener("animationend", function handleCoinTwistIn(innerEvent) {
+          if (innerEvent.target !== elements.overlayCoinInner || !elements.overlayCoin.classList.contains("is-twisting-in")) return;
+
+          elements.overlayCoin.removeEventListener("animationend", handleCoinTwistIn);
+          elements.overlayCoin.classList.remove("is-twisting-in");
+        });
+      });
+    });
     return;
   }
 
   if (elements.overlayCoin.classList.contains("is-twisting-out") || elements.overlayCoin.classList.contains("is-twisting-in")) return;
 
   const nextSide = overlaySide === "front" ? "back" : "front";
-  elements.overlayCoin.classList.add("is-twisting-out");
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    overlaySide = nextSide;
+    renderOverlayBanknoteFace(overlayItem, overlaySide);
+    return;
+  }
+
   window.clearTimeout(overlayTurnTimer);
-  overlayTurnTimer = window.setTimeout(() => {
+  elements.overlayCoin.classList.add("is-twisting-out");
+
+  elements.overlayCoin.addEventListener("animationend", function handleTwistOut(event) {
+    if (event.target !== elements.overlayCoinInner || !elements.overlayCoin.classList.contains("is-twisting-out")) return;
+
+    elements.overlayCoin.removeEventListener("animationend", handleTwistOut);
     overlaySide = nextSide;
     renderOverlayBanknoteFace(overlayItem, overlaySide);
     elements.overlayCoin.classList.remove("is-twisting-out");
-    elements.overlayCoin.classList.add("is-twisting-in");
-    window.setTimeout(() => {
-      elements.overlayCoin.classList.remove("is-twisting-in");
-    }, 230);
-  }, 230);
+
+    requestAnimationFrame(() => {
+      elements.overlayCoin.classList.add("is-twisting-in");
+      elements.overlayCoin.addEventListener("animationend", function handleTwistIn(innerEvent) {
+        if (innerEvent.target !== elements.overlayCoinInner || !elements.overlayCoin.classList.contains("is-twisting-in")) return;
+
+        elements.overlayCoin.removeEventListener("animationend", handleTwistIn);
+        elements.overlayCoin.classList.remove("is-twisting-in");
+      });
+    });
+  });
 });
 
 elements.overlayPrev.addEventListener("click", () => openOverlayByOffset(-1));

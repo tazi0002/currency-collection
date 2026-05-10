@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --paper: #f6efe1;
   --paper-strong: #fffaf0;
   --ink: #17130e;
@@ -349,6 +349,11 @@ select:disabled {
 }
 
 .coin-flip.is-flipped .coin-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.inventory-card.coin .coin-flip:hover .coin-flip-inner,
+.inventory-card.banknote .coin-flip:hover .coin-flip-inner {
   transform: rotateY(180deg);
 }
 
@@ -850,17 +855,108 @@ body.overlay-open {
   object-fit: contain;
 }
 
-.overlay-coin.banknote .coin-flip-inner {
+.overlay-coin .coin-flip-inner {
   transform-style: preserve-3d;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.overlay-coin {
+  perspective: 1400px;
+  transform: translateZ(0);
 }
 
 .overlay-coin.banknote.is-twisting-out .coin-flip-inner {
-  animation: banknote-twist-out 0.23s cubic-bezier(0.55, 0, 0.75, 0.2) forwards;
+  animation: banknote-twist-out 0.16s cubic-bezier(0.45, 0, 0.65, 1) forwards;
 }
 
 .overlay-coin.banknote.is-twisting-in .coin-flip-inner {
-  animation: banknote-twist-in 0.23s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  animation: banknote-twist-in 0.18s cubic-bezier(0.16, 0.85, 0.24, 1) both;
 }
+
+.overlay-coin:not(.banknote).is-twisting-out .coin-flip-inner {
+  animation: coin-twist-out 0.16s cubic-bezier(0.45, 0, 0.65, 1) forwards;
+}
+
+.overlay-coin:not(.banknote).is-twisting-in .coin-flip-inner {
+  animation: coin-twist-in 0.18s cubic-bezier(0.16, 0.85, 0.24, 1) both;
+}
+
+.overlay-coin.is-nav-out-left .coin-flip-inner,
+.overlay-coin.is-nav-in-left .coin-flip-inner {
+  transform-origin: left center;
+}
+
+.overlay-coin.is-nav-out-right .coin-flip-inner,
+.overlay-coin.is-nav-in-right .coin-flip-inner {
+  transform-origin: right center;
+}
+
+.overlay-coin.is-nav-out-left .coin-flip-inner {
+  animation: overlay-turn-out-left 0.16s cubic-bezier(0.45, 0, 0.65, 1) forwards;
+}
+
+.overlay-coin.is-nav-in-left .coin-flip-inner {
+  animation: overlay-turn-in-left 0.18s cubic-bezier(0.16, 0.85, 0.24, 1) both;
+}
+
+.overlay-coin.is-nav-out-right .coin-flip-inner {
+  animation: overlay-turn-out-right 0.16s cubic-bezier(0.45, 0, 0.65, 1) forwards;
+}
+
+.overlay-coin.is-nav-in-right .coin-flip-inner {
+  animation: overlay-turn-in-right 0.18s cubic-bezier(0.16, 0.85, 0.24, 1) both;
+}
+
+
+@keyframes overlay-turn-out-left {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-44px, 0, 0) scale(0.985);
+  }
+}
+
+@keyframes overlay-turn-in-left {
+  0% {
+    opacity: 0;
+    transform: translate3d(44px, 0, 0) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes overlay-turn-out-right {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(44px, 0, 0) scale(0.985);
+  }
+}
+
+@keyframes overlay-turn-in-right {
+  0% {
+    opacity: 0;
+    transform: translate3d(-44px, 0, 0) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 
 @keyframes banknote-twist-out {
   0% {
@@ -873,6 +969,26 @@ body.overlay-open {
 
   100% {
     transform: rotateY(86deg) rotateZ(-3deg) scaleX(0.12);
+  }
+}
+
+@keyframes coin-twist-out {
+  0% {
+    transform: rotateY(0deg) scale(1);
+  }
+
+  100% {
+    transform: rotateY(86deg) scale(0.96);
+  }
+}
+
+@keyframes coin-twist-in {
+  0% {
+    transform: rotateY(-86deg) scale(0.96);
+  }
+
+  100% {
+    transform: rotateY(0deg) scale(1);
   }
 }
 
@@ -903,6 +1019,18 @@ body.overlay-open {
 
 .overlay-coin .coin-face img {
   filter: drop-shadow(0 20px 34px rgba(0, 0, 0, 0.38));
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.overlay-coin.is-twisting-out .coin-face img,
+.overlay-coin.is-twisting-in .coin-face img,
+.overlay-coin.is-nav-out-left .coin-face img,
+.overlay-coin.is-nav-in-left .coin-face img,
+.overlay-coin.is-nav-out-right .coin-face img,
+.overlay-coin.is-nav-in-right .coin-face img {
+  transform: translateZ(0);
+  transition: none;
 }
 
 
@@ -915,12 +1043,13 @@ body.overlay-open {
   .overlay-stage {
     grid-template-columns: 1fr;
     justify-items: center;
+    justify-content: center;
   }
 
   .overlay-details {
     order: 2;
-    width: 100%;
-    justify-self: stretch;
+    width: min(100%, 640px);
+    justify-self: center;
   }
 
   .overlay-coin.coin-flip,
@@ -929,8 +1058,8 @@ body.overlay-open {
   }
 
   .overlay-coin.banknote.coin-flip {
-    width: min(82vw, 650px);
-    height: min(46vw, 360px, calc(100vh - 360px));
+    width: min(78vw, 620px, calc(100vw - 92px));
+    height: min(44vw, 350px, calc(100vh - 360px));
   }
 
   .overlay-coin.coin-flip {
@@ -940,20 +1069,32 @@ body.overlay-open {
 }
 
 @media (max-width: 780px) {
+  .coin-overlay {
+    padding: 16px;
+  }
+
+  .coin-overlay-panel.banknote,
+  .coin-overlay-panel {
+    padding: 24px 20px;
+  }
+
   .overlay-stage {
     gap: 18px;
   }
 
+  .overlay-details {
+    width: min(100%, calc(100vw - 72px));
+  }
+
   .overlay-coin.coin-flip {
-    width: min(60vw, 240px);
-    height: min(60vw, 240px, calc(100vh - 360px));
+    width: min(58vw, 230px);
+    height: min(58vw, 230px, calc(100vh - 360px));
   }
 
   .overlay-coin.banknote.coin-flip {
-    width: min(84vw, 520px);
-    height: min(48vw, 292px, calc(100vh - 360px));
+    width: min(74vw, 500px, calc(100vw - 88px));
+    height: min(42vw, 285px, calc(100vh - 380px));
   }
-}
 }
 
 button,
@@ -990,8 +1131,7 @@ button:active,
   transition: transform 0.22s ease, filter 0.22s ease;
 }
 
-.inventory-card:hover .coin-face img,
-.overlay-coin:hover .coin-face img {
+.overlay-coin.banknote:hover .coin-face img {
   transform: scale(1.06);
 }
 
@@ -1035,5 +1175,4 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(185, 130, 34, 0.12);
   outline: none;
 }
-
 
