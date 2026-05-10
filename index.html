@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -24,6 +24,17 @@
         </div>
       </div>
 
+      <div class="collection-tabs" role="tablist" aria-label="Collection view">
+        <button class="collection-tab is-active" type="button" data-view="inventory" aria-selected="true">Inventory</button>
+        <button class="collection-tab" type="button" data-view="missing" aria-selected="false">Missing</button>
+      </div>
+
+      <div class="display-options" aria-label="Result view">
+        <span>View</span>
+        <button class="view-option is-active" type="button" data-card-view="images" aria-pressed="true">Image</button>
+        <button class="view-option" type="button" data-card-view="list" aria-pressed="false">List</button>
+      </div>
+
       <div class="sticky-tools">
         <form class="filters" id="filters" aria-label="Inventory filters">
           <label class="filter-search">
@@ -31,12 +42,16 @@
             <input id="searchFilter" type="search" placeholder="Search name, country, notes...">
           </label>
 
+          <button class="mobile-filter-toggle" type="button" id="mobileFilterToggle" aria-expanded="false" aria-controls="filters">
+            Filter
+          </button>
+
           <label>
             Type
             <select id="typeFilter">
               <option value="all">All types</option>
               <option value="coin">Coins</option>
-              <option value="banknote">Bank notes</option>
+              <option value="banknote">Banknotes</option>
             </select>
           </label>
 
@@ -85,7 +100,7 @@
         </div>
       </div>
 
-      <div class="inventory-grid view-detailed" id="inventoryGrid" aria-live="polite"></div>
+      <div class="inventory-grid view-images" id="inventoryGrid" aria-live="polite"></div>
       <p class="empty-state" id="emptyState" hidden>No inventory items match these filters.</p>
       <button class="see-more-button" type="button" id="seeMoreButton" hidden>See more</button>
     </section>
@@ -108,9 +123,7 @@
     </div>
   </div>
   <script src="js/inventory.js"></script>
+  <script src="js/missing-coins.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
-
-
-
