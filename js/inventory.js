@@ -2414,7 +2414,7 @@ const worldBanknoteInventory = [
         "extraCopies":  0,
         "image":  "images/banknotes/europe/banknote_germany_1970_5deutschemarks_europe_front_v1.jpg",
         "frontImage":  "images/banknotes/europe/banknote_germany_1970_5deutschemarks_europe_front_v1.jpg",
-        "backImage":  "images/banknotes/europe/banknote_germany_1970_5deutschemarks_europe_back_v1.jpg",
+        "backImage":  "images/banknotes/europe/banknote_germany_1970_5deutschemarks_europe_back_v2.jpg",
         "frontDescription":  "Front of the Germany 5 Deutschemarks banknote.",
         "backDescription":  "Back of the Germany 5 Deutschemarks banknote.",
         "notes":  ""
@@ -3177,25 +3177,6 @@ const worldBanknoteInventory = [
         "backImage":  "images/banknotes/asia/banknote_philippines_2010_50peso_asia_back_v1.jpg",
         "frontDescription":  "Front of the Philippines 50 Peso banknote.",
         "backDescription":  "Back of the Philippines 50 Peso banknote.",
-        "notes":  ""
-    },
-    {
-        "id":  "world-banknote-qatar-1980-5-riyals-unknown-v1-75",
-        "type":  "banknote",
-        "name":  "Qatar 5 Riyals Banknote (v1)",
-        "country":  "Qatar",
-        "year":  "1980",
-        "collectionSet":  "Asia Banknotes",
-        "value":  "5 Riyals",
-        "material":  "Paper banknote",
-        "condition":  "Not listed",
-        "quantity":  1,
-        "extraCopies":  0,
-        "image":  "images/banknotes/asia/banknote_qatar_1980_5riyals_asia_front_v1.jpg",
-        "frontImage":  "images/banknotes/asia/banknote_qatar_1980_5riyals_asia_front_v1.jpg",
-        "backImage":  "images/banknotes/asia/banknote_qatar_1980_5riyals_asia_back_v1.jpg",
-        "frontDescription":  "Front of the Qatar 5 Riyals banknote.",
-        "backDescription":  "Back of the Qatar 5 Riyals banknote.",
         "notes":  ""
     },
     {
