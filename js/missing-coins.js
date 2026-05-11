@@ -7378,20 +7378,6 @@ window.missingCoins = [
     "notes": "Missing from collection."
   },
   {
-    "id": "missing-coin-canada-1-dollar-2011-parks-canada",
-    "type": "coin",
-    "status": "missing",
-    "name": "Parks Canada",
-    "country": "Canada",
-    "year": "2011",
-    "collectionSet": "Parks Canada",
-    "value": "1 dollar",
-    "material": "Not listed",
-    "condition": "Missing",
-    "quantity": 0,
-    "notes": "Missing from collection."
-  },
-  {
     "id": "missing-coin-canada-1-dollar-2014-lucky-loonie-sochi",
     "type": "coin",
     "status": "missing",

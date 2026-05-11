@@ -96,7 +96,7 @@ function restorePageConfig() {
     elements.setFilter.value = [...elements.setFilter.options].some((option) => option.value === saved.set) ? saved.set : "all";
     elements.yearFilter.value = [...elements.yearFilter.options].some((option) => option.value === saved.year) ? saved.year : "all";
     sortState = {
-      key: ["year", "value"].includes(saved.sortKey) ? saved.sortKey : "year",
+      key: ["year", "value", "country"].includes(saved.sortKey) ? saved.sortKey : "year",
       direction: saved.sortDirection === "desc" ? "desc" : "asc"
     };
     visibleCount = Math.max(PAGE_SIZE, Number(saved.visibleCount) || PAGE_SIZE);
@@ -545,7 +545,7 @@ function refreshYearOptions(preferredValue = elements.yearFilter.value) {
 }
 
 function canOpenOverlay(item) {
-  return Boolean(item && (item.status === "missing" || hasAnyImage(item)));
+  return Boolean(item && (item.status === "missing" || item.type === "coin" || hasAnyImage(item)));
 }
 function getItemsForSelectedType() {
   const type = elements.typeFilter.value;
@@ -659,13 +659,21 @@ function updateSummary() {
   elements.banknoteCount.textContent = items.filter((item) => item.type === "banknote").length;
 }
 
+function getSortLabel(key) {
+  return {
+    year: "Year",
+    value: "Value",
+    country: "Country"
+  }[key] || "Year";
+}
+
 function updateSortButtons() {
   const arrow = sortState.direction === "asc" ? "\u2193" : "\u2191";
-  const activeLabel = sortState.key === "year" ? "Year" : "Value";
+  const activeLabel = getSortLabel(sortState.key);
 
   elements.sortSelect.textContent = `${activeLabel} ${arrow}`;
   elements.sortMenu.querySelectorAll("[data-sort-key]").forEach((button) => {
-    const label = button.dataset.sortKey === "year" ? "Year" : "Value";
+    const label = getSortLabel(button.dataset.sortKey);
     button.textContent = `${label} ${button.dataset.sortKey === sortState.key ? arrow : ""}`.trim();
     button.classList.toggle("is-active", button.dataset.sortKey === sortState.key);
   });
@@ -718,6 +726,7 @@ function updateCardView() {
 function getSortValue(item, key) {
   if (key === "year") return getSortYear(item.year, Number.MAX_SAFE_INTEGER);
   if (key === "value") return getValueAmount(item.value);
+  if (key === "country") return item.country || "";
   return item.name;
 }
 
@@ -742,8 +751,6 @@ function getFilteredInventory() {
   const decade = elements.yearFilter.value;
 
   return getActiveItems().filter((item) => {
-    if (activeView === "inventory" && item.type === "coin" && !hasAnyImage(item)) return false;
-
     const searchableText = normalize([
       item.name,
       item.country,
@@ -877,9 +884,24 @@ function getListActionMarkup(item) {
     </button>
   `;
 }
+function isCanadianSpecialCoin(item) {
+  return item.type === "coin"
+    && item.country === "Canada"
+    && item.collectionSet
+    && item.collectionSet !== "Canada Circulation";
+}
+
+function getCoinDisplayName(item) {
+  if (!isCanadianSpecialCoin(item)) return "";
+  const name = label(item.name)
+    .replace(/^Canadian\s+/i, "")
+    .replace(/\s+Coin$/i, "")
+    .trim();
+  return name && name !== "Not listed" ? name : "";
+}
+
 function isSpecialListItem(item) {
-  if (item.type !== "coin") return false;
-  return item.collectionSet && item.collectionSet !== "Canada Circulation";
+  return isCanadianSpecialCoin(item);
 }
 
 function getListYearLabel(item) {
@@ -971,6 +993,7 @@ function renderListHeader() {
 }
 
 function renderCard(item) {
+  const coinDisplayName = getCoinDisplayName(item);
   return `
     <article class="inventory-card ${item.type} ${item.status === "missing" ? "missing" : ""}" data-coin-id="${item.id}">
       <div class="list-row">
@@ -984,6 +1007,7 @@ function renderCard(item) {
       </div>
       <div class="item-quick">
         <span class="item-value">${formatValueLabel(item.value)}</span>
+        ${coinDisplayName ? `<span class="item-name">${coinDisplayName}</span>` : ""}
         <span class="item-year">${label(item.year)}</span>
       </div>
     </article>
@@ -995,6 +1019,7 @@ function getSetLabel(item) {
 }
 
 function renderOverlayDetails(item) {
+  const coinDisplayName = getCoinDisplayName(item);
   const countryCode = getCountryCode(item.country);
   const flag = countryCode ? `<img class="country-flag" src="https://flagcdn.com/${countryCode}.svg" alt="${label(item.country)} flag">` : "";
 
@@ -1005,6 +1030,7 @@ function renderOverlayDetails(item) {
     </header>
     <dl>
       <div><dt>Value</dt><dd>${getDisplayValue(item)}</dd></div>
+      ${coinDisplayName ? `<div><dt>Coin</dt><dd>${coinDisplayName}</dd></div>` : ""}
       <div><dt>Year</dt><dd>${label(item.year)}</dd></div>
       <div><dt>Type</dt><dd>${getTypeName(item)}</dd></div>
       <div><dt>Set</dt><dd>${getSetLabel(item)}</dd></div>
