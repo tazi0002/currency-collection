@@ -585,10 +585,11 @@ function refreshCountryOptions(preferredValue = elements.countryFilter.value) {
     ? preferredValue
     : "all";
 }
-function getItemsForCountryOptions() {
+function getItemsForCountryOptions(options = {}) {
+  const { ignoreValue = false } = options;
   const type = elements.typeFilter.value;
   const country = elements.countryFilter.value;
-  const value = elements.valueFilter.value;
+  const value = ignoreValue ? "all" : elements.valueFilter.value;
   const decade = elements.yearFilter.value;
 
   if (country === "all") {
@@ -605,7 +606,7 @@ function getItemsForCountryOptions() {
 
 function refreshValueOptions() {
   const currentValue = elements.valueFilter.value;
-  const values = uniqueValuesByAmount(getItemsForCountryOptions());
+  const values = uniqueValuesByAmount(getItemsForCountryOptions({ ignoreValue: true }));
 
   clearSelect(elements.valueFilter, "All values");
   elements.valueFilter.disabled = elements.countryFilter.value === "all";
@@ -1468,3 +1469,4 @@ updateSummary();
 updateSortButtons();
 updateCardView();
 renderInventory(false);
+
